@@ -1,0 +1,37 @@
+#!/bin/sh
+# Stanford Pascal Fast Wrapper
+# Compiles and runs a Pascal program in one step
+# usage: spascal <filename[.pas]>
+
+if [ -z "$1" ]; then
+    echo "Usage: spascal <filename[.pas]>"
+    exit 1
+fi
+
+NAME=$(basename "$1" .pas)
+DIR=$(dirname "$1")
+
+# Attempt to find wrappers
+PCOMP="$(which pcomp 2>/dev/null)"
+PRUN="$(which prun 2>/dev/null)"
+
+# If not installed, try local script_ix path
+if [ -z "$PCOMP" ]; then
+    SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+    PCOMP="$SCRIPT_DIR/pp"
+    PRUN="$SCRIPT_DIR/prun"
+fi
+
+if [ ! -f "$PCOMP" ]; then
+    echo "Error: pcomp (pp) not found. Is Stanford Pascal installed?"
+    exit 1
+fi
+
+# 1. Compile
+"$PCOMP" "$1"
+if [ $? -eq 0 ]; then
+    # 2. Run
+    "$PRUN" "$DIR/$NAME.pcode"
+else
+    exit 1
+fi

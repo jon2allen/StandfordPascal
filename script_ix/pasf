@@ -1,2 +1,43 @@
-cp $1.pas $1.bak
-env DD_EINGABE=$1.bak DD_AUSGABE=$1.pas DD_LISTING=$1.lis pcint pcode=pasform.pcode inc=paslibx,passcan pas=pasform.pas out=pasform.lis debug=n
+#!/bin/sh
+# Stanford Pascal Formatter Wrapper for FreeBSD/POSIX
+# usage: pasf filename[.pas]
+
+if [ -z "$1" ]; then
+    echo "Usage: pasf <filename[.pas]>"
+    exit 1
+fi
+
+NAME=$(basename "$1" .pas)
+DIR=$(dirname "$1")
+
+# Attempt to find the compiler root
+PASCAL_ROOT="${PASCAL_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+BIN_DIR="$PASCAL_ROOT/bin"
+SRC_DIR="$PASCAL_ROOT/src"
+ETC_DIR="$PASCAL_ROOT/etc"
+
+# Backup the original file
+cp "$DIR/$NAME.pas" "$DIR/$NAME.pas.bak"
+
+# Environment DD variables (Stanford Pascal convention)
+export DD_EINGABE="$DIR/$NAME.pas.bak"
+export DD_AUSGABE="$DIR/$NAME.pas"
+export DD_LISTING="$DIR/$NAME.lis"
+export DD_PRD="$ETC_DIR/pascal.messages"
+export DD_TRACEF="${DD_TRACEF:-/dev/null}"
+
+# Run the formatter
+"$BIN_DIR/pcint" \
+    pcode="$SRC_DIR/pasform.pcode" \
+    inc="$SRC_DIR/paslibx,$SRC_DIR/passcan" \
+    pas="pasform.pas" \
+    out="$DIR/$NAME.formlis" \
+    debug=n
+
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "Successfully formatted: $NAME.pas (backup in $NAME.pas.bak)"
+else
+    echo "Formatting failed with exit code $EXIT_CODE"
+fi
+exit $EXIT_CODE

@@ -1,1 +1,39 @@
-env DD_INPUT=$1.prr DD_OBJCODE=$1.xxx DD_LIST002=$1.list002 DD_DBGINFO=$1.dbginfo DD_TRACEF=pascal2.tracef pcint prr=pascal2.prr inc=paslibx pas=pascal2.pas out=pascal2.prrlis debug=n
+#!/bin/sh
+# Stanford Pascal Compiler (Pass 2) Wrapper for FreeBSD/POSIX
+# usage: pas2 filename[.prr]
+
+if [ -z "$1" ]; then
+    echo "Usage: pas2 <filename[.prr]>"
+    exit 1
+fi
+
+NAME=$(basename "$1" .prr)
+DIR=$(dirname "$1")
+
+# Attempt to find the compiler root
+PASCAL_ROOT="${PASCAL_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+BIN_DIR="$PASCAL_ROOT/bin"
+SRC_DIR="$PASCAL_ROOT/src"
+ETC_DIR="$PASCAL_ROOT/etc"
+
+# Environment DD variables (Stanford Pascal convention)
+export DD_INPUT="$DIR/$NAME.prr"
+export DD_OBJCODE="$DIR/$NAME.xxx"
+export DD_LIST002="$DIR/$NAME.list002"
+export DD_DBGINFO="$DIR/$NAME.dbginfo"
+export DD_PRD="$ETC_DIR/pascal.messages"
+export DD_TRACEF="${DD_TRACEF:-pascal2.tracef}"
+
+# Run the 2nd pass compiler
+# Note: it's typically pascal2.pcode now
+"$BIN_DIR/pcint" \
+    pcode="$SRC_DIR/pascal2.pcode" \
+    inc="$SRC_DIR/paslibx" \
+    out="$DIR/$NAME.prrlis" \
+    debug=n
+
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "Pass 2 failed with exit code $EXIT_CODE"
+fi
+exit $EXIT_CODE

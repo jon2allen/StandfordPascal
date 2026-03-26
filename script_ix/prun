@@ -1,1 +1,41 @@
-pcint pcode=$1.pcode inc=paslibx,pasutils pas=$1.pas out=$1.pcodelis debug=n
+#!/bin/sh
+# Stanford Pascal Runner Wrapper for FreeBSD/POSIX
+# usage: prun filename[.pcode]
+
+if [ -z "$1" ]; then
+    echo "Usage: prun <filename[.pcode]>"
+    exit 1
+fi
+
+NAME=$(basename "$1" .pcode)
+DIR=$(dirname "$1")
+
+# Attempt to find the compiler root
+PASCAL_ROOT="${PASCAL_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+BIN_DIR="$PASCAL_ROOT/bin"
+SRC_DIR="$PASCAL_ROOT/src"
+ETC_DIR="$PASCAL_ROOT/etc"
+
+# Environment DD variables (Stanford Pascal convention)
+export DD_PRD="$ETC_DIR/pascal.messages"
+export DD_TRACEF="${DD_TRACEF:-/dev/null}"
+
+TIMEOUT_BIN=$(which timeout)
+[ -z "$TIMEOUT_BIN" ] && TIMEOUT_CMD="" || TIMEOUT_CMD="$TIMEOUT_BIN 60s"
+
+# Run the P-code using the pcint interpreter
+$TIMEOUT_CMD "$BIN_DIR/pcint" \
+    pcode="$DIR/$NAME.pcode" \
+    inc="$SRC_DIR/paslibx,$SRC_DIR/pasutils" \
+    out="$DIR/$NAME.runlisting" \
+    debug=n
+
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ]; then
+    :
+elif [ $EXIT_CODE -eq 124 ]; then
+    echo "Execution timed out after 60 seconds."
+else
+    echo "Execution failed with exit code $EXIT_CODE"
+fi
+exit $EXIT_CODE

@@ -1,2 +1,50 @@
-cp $1.pcode $1.pcodealt
-env DD_INPUT=$1.pas DD_LISTING=$1.lis DD_PCODE=$1.pcode DD_PCODE1=$1.pcode1 DD_PCODE2=$1.pcode2 DD_PCODE3=$1.pcode3 DD_DBGINFO=$1.dbginfo DD_PRD=pascal.messages DD_TRACEF=*stdout* pcint pcode=pascal1.pcode inc=paslibx,passcan pas=pascal1.pas out=pascal1.pcodelis debug=n
+#!/bin/sh
+# Stanford Pascal Compiler (Pass 1) Wrapper for FreeBSD/POSIX
+# usage: pp filename[.pas]
+
+if [ -z "$1" ]; then
+    echo "Usage: pp <filename[.pas]>"
+    exit 1
+fi
+
+NAME=$(basename "$1" .pas)
+DIR=$(dirname "$1")
+INPUT="$DIR/$NAME.pas"
+
+# Attempt to find the compiler root
+PASCAL_ROOT="${PASCAL_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+BIN_DIR="$PASCAL_ROOT/bin"
+SRC_DIR="$PASCAL_ROOT/src"
+ETC_DIR="$PASCAL_ROOT/etc"
+
+# Environment DD variables (Stanford Pascal convention)
+export DD_INPUT="$INPUT"
+export DD_LISTING="$DIR/$NAME.lis"
+export DD_PCODE="$DIR/$NAME.pcode"
+export DD_PCODE1="$DIR/$NAME.pcode1"
+export DD_PCODE2="$DIR/$NAME.pcode2"
+export DD_PCODE3="$DIR/$NAME.pcode3"
+export DD_DBGINFO="$DIR/$NAME.dbginfo"
+export DD_PRD="$ETC_DIR/pascal.messages"
+export DD_TRACEF="${DD_TRACEF:-/dev/null}"
+
+TIMEOUT_BIN=$(which timeout)
+[ -z "$TIMEOUT_BIN" ] && TIMEOUT_CMD="" || TIMEOUT_CMD="$TIMEOUT_BIN 60s"
+
+# Run the compiler (pascal1.pcode) using the pcint interpreter
+$TIMEOUT_CMD "$BIN_DIR/pcint" \
+    pcode="$SRC_DIR/pascal1.pcode" \
+    inc="$SRC_DIR/paslibx,$SRC_DIR/passcan" \
+    pas="$NAME.pas" \
+    out="$DIR/$NAME.listing" \
+    debug=n
+
+EXIT_CODE=$?
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "Successfully compiled: $NAME.pcode"
+elif [ $EXIT_CODE -eq 124 ]; then
+    echo "Compilation timed out after 60 seconds."
+else
+    echo "Compilation failed with exit code $EXIT_CODE"
+fi
+exit $EXIT_CODE
